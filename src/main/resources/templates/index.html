@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js" integrity="sha512-1QvjE7BtotQjkq8PxLeF6P46gEpBRXuskzIVgjFpekzFVF4yjRgrQvTG1MTOJ3yQgvTteKAcO7DSZI92+u/yZw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+            
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js" integrity="sha512-iKDtgDyTHjAitUDdLljGhenhPwrbBfqTKWO1mkhSFH3A7blITC9MhYon6SjnMhp4o0rADGw9yAC6EW4t5a4K3g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        
+        <script type="text/javascript">
+        
+            let stompClient = null;
+            
+            function connect() {
+
+                const socket = new SockJS('/chat-websocket');
+
+                stompClient = Stomp.over(socket);  
+
+                stompClient.connect({}, function(frame) {
+
+                    stompClient.subscribe('/topic/chat', function(newMessageReceived) {
+                        addMessageReceived(JSON.parse(newMessageReceived.body));
+                    });
+                    
+                    setConnected(true);
+                                        
+                });
+            }
+            
+            function disconnect() {
+
+                setConnected(false);
+
+                if(stompClient != null) {
+
+                    stompClient.disconnect();
+                }
+            }            
+            
+            function setConnected(connected) {
+
+                if (connected) {
+
+                    document.getElementById('button-connect').style.display = 'none';
+                    document.getElementById('button-disconnect').style.display = 'block';
+
+                    document.getElementById('chat-container').style.display = 'flex';
+                    
+                    document.getElementById('sender').disabled = true;
+
+                } else {
+
+                    document.getElementById('button-connect').style.display = 'block';
+                    document.getElementById('button-disconnect').style.display = 'none';
+
+                    document.getElementById('chat-container').style.display = 'none';
+                    
+                    document.getElementById('sender').disabled = false;
+                    
+                    document.getElementById('sender').value = '';
+                }
+                
+                document.getElementById('messages-container').innerHTML = '';
+            }
+            
+            function addMessageReceived(newMessageReceived) {
+
+                const sender = document.getElementById('sender').value;
+
+                const messagesContainer = document.getElementById('messages-container');
+
+                let newMessagePosition = 'left';
+
+                if (newMessageReceived.sender == sender) {
+
+                    newMessagePosition = 'right';
+                }
+
+                const newMessage = document.createElement("div");
+
+                newMessage.className = 'new-message ' + newMessagePosition;
+
+                newMessage.innerHTML = `
+                    <div class="new-message-box">
+                        <div class="text">${newMessageReceived.text}</div>
+                        <div class="details-container">${newMessageReceived.sender} - ${newMessageReceived.time}</div>
+                    </div>
+                `;
+
+                messagesContainer.appendChild(newMessage);
+            }            
+            
+            function sendMessage() {
+
+                const sender = document.getElementById('sender').value;
+                const text = document.getElementById('text').value;
+
+                stompClient.send(
+                    "/chat-app/chat", {}, 
+                    JSON.stringify({
+                        'sender':sender, 
+                        'text':text
+                    })
+                );
+
+                document.getElementById('text').value = '';
+            }
+            
+        </script>
+
+        <style type="text/css">
+        
+            * {
+                box-sizing: border-box;
+                padding: 0;
+                margin: 0;
+            }
+
+            #disconnect {
+                display: none;
+            }
+            
+            body {
+                font-size: 20px;
+                background-color: #bbdefb;
+            } 
+
+            button, input {
+                font-size: 12px;
+                padding: 5px;
+            }
+            
+            #button-connect,
+            #button-disconnect {
+				color: #ffffff;
+				border: none;
+				cursor: pointer;	
+			}
+            
+            #button-connect {
+				background-color: #4caf50;
+			}            
+            
+            #button-disconnect {
+				background-color: #d32f2f;
+			}
+        
+            .container {
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                height: 100vh;
+                max-width: 600px;
+                margin:0 auto;
+            }
+            
+            .connect-container {
+                display: flex;
+                align-items: center;
+            }
+            
+            #chat-container {
+                flex-basis: 100%;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            
+            #messages-container {
+                flex-basis: 100%;
+                overflow: auto;
+                margin-left: 5px;
+                margin-right: 5px;                
+                border: 1px solid #000000;
+                background-color: #ffffff;
+            }
+
+            .new-message {
+                display: flex;
+            }
+
+            .new-message-box {
+                padding: 5px;
+                margin: 5px;
+                border: 1px solid #c6c6c6; 
+                border-radius: 3px;       
+            }
+
+            .new-message-box .details-container {             
+                font-size: 12px;
+                text-align: right;
+            }
+
+            .new-message.left {
+                justify-content: flex-start;
+            }
+            
+            .new-message.left .new-message-box {
+                background-color: #ffccbc;        
+            }            
+            
+            .new-message.right .new-message-box {
+                background-color: #b2dfdb;        
+            }            
+
+            .new-message.right {
+                justify-content: flex-end;                
+            }            
+            
+            .send-message-container {
+                display: flex;
+                align-items: center;
+            }	
+            
+            .input-container {
+                flex-basis: 100%;
+            }
+
+            .input-container input {
+                width: 100%;
+            }
+
+            .connect-container > div,
+            .send-message-container > div {
+                padding: 5px;
+            }
+            
+            #button-sendmessage {
+				background-color: #f9a825;  
+				border: none;
+				cursor: pointer;
+			}
+        
+        </style>
+
+    </head>
+    <body onload="disconnect()">
+        
+        <div class="container">
+            <div class="connect-container">
+                <div class="input-container">
+                    <input type="text" id="sender" placeholder="Choose a nickname"/>
+                </div>
+                <div>
+                    <button id="button-connect" onclick="connect();">
+                        CONNECT
+                    </button>
+                    <button id="button-disconnect" onclick="disconnect();">
+                        DISCONNECT
+                    </button>
+                </div>               	
+            </div>
+            <div id="chat-container">
+                <div id="messages-container"></div>
+                <div class="send-message-container">
+                    <div class="input-container">
+                        <input type="text" id="text" placeholder="Write a message"/>
+                    </div>
+                    <div>
+                        <button id="button-sendmessage" onclick="sendMessage();">SEND</button>            		
+                    </div>            		
+                </div>                
+            </div>
+        </div>
+
+    </body>
+</html>
